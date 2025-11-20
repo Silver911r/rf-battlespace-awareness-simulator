@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>RF Battlespace Awareness – Live TDOA Demo</title>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            overflow: hidden;
+            font-family: monospace;
+            color: #00ff41;
+        }
+
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 12px;
+            border: 1px solid #00ff41;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="cesiumContainer"></div>
+    <div id="info">RF Battlespace Awareness – Real-time TDOA<br><span id="status">Initializing...</span></div>
+
+    <script>
+        // No token needed — we're using pure ellipsoid + built-in stars
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+            terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+            skyBox: false,                    // disable broken external skybox
+            skyAtmosphere: false,
+            timeline: false,
+            animation: false,
+            baseLayerPicker: false,
+            geocoder: false,
+            homeButton: false,
+            sceneModePicker: false,
+            navigationHelpButton: false,
+            selectionIndicator: false,
+            infoBox: false,
+            fullscreenButton: false
+        });
+
+        // Dark space background + subtle stars
+        viewer.scene.backgroundColor = Cesium.Color.BLACK;
+        viewer.scene.globe.enableLighting = true;
+        viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0b1e3d');
+
+        document.getElementById('status').innerHTML = 'Ready – loading fix...';
+
+        async function loadFix() {
+            try {
+                const resp = await fetch('/fix');
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+
+                viewer.entities.removeAll();
+
+                // TRUTH (always red)
+                viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(51.3890, 35.6892, 100),
+                    billboard: { image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTE2IDBMMCAxNmwxNiAxNiAxNi0xNnoiIGZpbGw9InJlZCIvPjwvc3ZnPg==', scale: 0.8 },
+                    label: { text: 'TRUTH', fillColor: Cesium.Color.RED, pixelOffset: new Cesium.Cartesian2(0, -30) }
+                });
+
+                // Color by CEP
+                let color, outline;
+                if (data.cep95 < 200) { color = Cesium.Color.LIME; outline = Cesium.Color.BLACK; }
+                else if (data.cep95 < 1000) { color = Cesium.Color.YELLOW; outline = Cesium.Color.BLACK; }
+                else { color = Cesium.Color.RED; outline = Cesium.Color.WHITE; }
+
+                viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(data.lon, data.lat, 200),
+                    point: { pixelSize: 16, color: color, outlineColor: outline, outlineWidth: 3 },
+                    label: { text: 'FIX', fillColor: color, pixelOffset: new Cesium.Cartesian2(0, -30) },
+                    ellipse: {
+                        semiMinorAxis: data.cep95,
+                        semiMajorAxis: data.cep95,
+                        height: 100,
+                        extrudedHeight: 300,
+                        material: color.withAlpha(0.25),
+                        outline: true,
+                        outlineColor: color
+                    }
+                });
+
+                const error_m = Math.round(Math.sqrt((data.lat - 35.6892) ** 2 + (data.lon - 51.3890) ** 2) * 111000);
+                document.getElementById('status').innerHTML =
+                    `Fix: ${data.lat.toFixed(4)}°N ${data.lon.toFixed(4)}°E | CEP95: ${data.cep95.toFixed(0)}m | Error: ${error_m}m | GDOP: ${(data.cep95 / 50).toFixed(1)}`;
+
+                viewer.zoomTo(viewer.entities);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        loadFix();
+        setInterval(loadFix, 5000);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,9 @@
+numpy
+scipy
+geographiclib
+skyfield
+fastapi
+uvicorn[standard]
+python-socketio
+jinja2
+aiofiles

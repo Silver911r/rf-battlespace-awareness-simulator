@@ -1,0 +1,17 @@
+[project]
+name = "rf-battlespace-awareness-simulator"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiofiles>=25.1.0",
+    "fastapi>=0.121.3",
+    "geographiclib>=2.1",
+    "jinja2>=3.1.6",
+    "numpy>=2.3.5",
+    "python-socketio>=5.14.3",
+    "scipy>=1.16.3",
+    "skyfield>=1.53",
+    "uvicorn[standard]>=0.38.0",
+]
