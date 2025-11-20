@@ -5,6 +5,7 @@
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
+![RF Battlespace Awareness – Live TDOA from LEO](images/tdoa-demo.gif)
 ## Overview
 
 This simulator demonstrates **passive RF geolocation** using time-difference-of-arrival (TDOA) measurements from a constellation of LEO satellites (similar to Starlink). The system can detect and locate ground-based RF emitters with sub-kilometer accuracy under ideal conditions.
