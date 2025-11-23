@@ -6,12 +6,23 @@
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
-        body {
+        html, body {
             margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
             background: #000;
             overflow: hidden;
             font-family: monospace;
             color: #00ff41;
+        }
+
+        #cesiumContainer {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
         }
 
         #info {
@@ -23,12 +34,45 @@
             border: 1px solid #00ff41;
             z-index: 1000;
         }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        button {
+            background: rgba(0, 0, 0, 0.8);
+            color: #00ff41;
+            border: 2px solid #00ff41;
+            padding: 10px 20px;
+            font-family: monospace;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: rgba(0, 255, 65, 0.2);
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+
+        button:active {
+            background: rgba(0, 255, 65, 0.4);
+        }
     </style>
 </head>
 
 <body>
     <div id="cesiumContainer"></div>
     <div id="info">RF Battlespace Awareness – Real-time TDOA<br><span id="status">Initializing...</span></div>
+    <div id="controls">
+        <button onclick="focusOnFix()">🎯 Focus on Fix</button>
+        <button onclick="resetView()">🌍 Reset View</button>
+    </div>
 
     <script>
         // Better Earth visualization with atmosphere
@@ -68,7 +112,8 @@
 
         document.getElementById('status').innerHTML = 'Ready – loading fix...';
 
-        let isFirstLoad = true;
+        let currentFixData = { lat: 0, lon: 0 };
+        let cameraInitialized = false;
 
         async function loadFix() {
             try {
@@ -151,27 +196,52 @@
                 document.getElementById('status').innerHTML =
                     `Fix: ${data.lat.toFixed(4)}°N ${data.lon.toFixed(4)}°E | CEP95: ${data.cep95.toFixed(0)}m | Error: ${error_m}m | GDOP: ${gdop} | Sats: ${data.satellites.length}`;
 
-                // Only fly camera on first load
-                if (isFirstLoad) {
-                    // Calculate max satellite altitude for proper framing
-                    const maxSatAlt = Math.max(...data.satellites.map(s => s.alt));
-                    // View from ~2x satellite altitude to see both Earth and satellites clearly
-                    const viewAltitude = maxSatAlt * 2.2; // For 550km sats → 1210km view
+                // Store current fix position for focus button
+                currentFixData = { lat: data.lat, lon: data.lon };
 
-                    viewer.camera.flyTo({
-                        destination: Cesium.Cartesian3.fromDegrees(data.emitter.lon, data.emitter.lat, viewAltitude),
+                // Set camera ONCE on first load - then NEVER touch it again
+                if (!cameraInitialized) {
+                    viewer.camera.setView({
+                        destination: Cesium.Cartesian3.fromDegrees(data.emitter.lon, data.emitter.lat, 2000000), // 2000km altitude
                         orientation: {
-                            heading: Cesium.Math.toRadians(0),
-                            pitch: Cesium.Math.toRadians(-45), // Look down at 45° for better Earth view
+                            heading: 0.0,
+                            pitch: Cesium.Math.toRadians(-30),
                             roll: 0.0
-                        },
-                        duration: 2.5
+                        }
                     });
-                    isFirstLoad = false;
+                    cameraInitialized = true;
                 }
             } catch (e) {
                 console.error(e);
             }
+        }
+
+        // Simple zoom to fix location
+        function focusOnFix() {
+            if (!currentFixData.lat || !currentFixData.lon) return;
+            viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(currentFixData.lon, currentFixData.lat, 100000),
+                orientation: {
+                    heading: 0,
+                    pitch: Cesium.Math.toRadians(-45),
+                    roll: 0
+                },
+                duration: 1.5
+            });
+        }
+
+        // Reset to overview
+        function resetView() {
+            if (!currentFixData.lat || !currentFixData.lon) return;
+            viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(currentFixData.lon, currentFixData.lat, 2000000),
+                orientation: {
+                    heading: 0,
+                    pitch: Cesium.Math.toRadians(-30),
+                    roll: 0
+                },
+                duration: 2
+            });
         }
 
         loadFix();
