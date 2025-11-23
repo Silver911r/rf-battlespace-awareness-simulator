@@ -6,6 +6,8 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 ![RF Battlespace Awareness – Live TDOA from LEO](images/tdoa-demo.gif)
+*Live TDOA geolocation with real-time updates every 5 seconds*
+
 ## Overview
 
 This simulator demonstrates **passive RF geolocation** using time-difference-of-arrival (TDOA) measurements from a constellation of LEO satellites (similar to Starlink). The system can detect and locate ground-based RF emitters with sub-kilometer accuracy under ideal conditions.
@@ -14,9 +16,20 @@ This simulator demonstrates **passive RF geolocation** using time-difference-of-
 
 - **TDOA Geolocation**: Multilateration algorithm with iterative least squares solver
 - **Satellite Simulation**: Realistic LEO constellation orbital mechanics using Skyfield
-- **Real-time Visualization**: Web-based interface with live geolocation updates
+- **Real-time Visualization**: Web-based 3D interface with live geolocation updates
+- **Interactive Controls**: Focus on fix location and reset view buttons
 - **Accuracy Metrics**: CEP95 (Circular Error Probable) uncertainty quantification
 - **Coordinate Systems**: ECEF <-> LLA transformations with WGS84 geodetic reference
+
+### Example Scenarios
+
+#### Good Satellite Geometry
+![Good Fix](images/fix-with-small-error.png)
+*Accurate fix with 4 satellites and optimal geometry - CEP95 ~300m, error ~9m*
+
+#### Poor Satellite Geometry
+![Poor Fix](images/bad-fix-lack-rf-sensors.png)
+*Degraded accuracy with suboptimal satellite constellation geometry - demonstrates GDOP impact*
 
 ## Quick Start
 
@@ -28,6 +41,10 @@ uv sync
 
 # Or using pip
 pip install -r requirements.txt
+```
+
+### Architecture
+
 ```
 +------------------+
 |  Emitter Layer   |  Ground-based RF transmitter
@@ -132,14 +149,15 @@ The solver uses **iterative weighted least squares** (Gauss-Newton method):
 
 ## Roadmap
 
+- [x] 3D visualization with satellite positions
 - [ ] Multi-emitter tracking with data association
 - [ ] FDOA (Frequency Difference of Arrival) integration
 - [ ] Kalman filtering for trajectory prediction
 - [ ] Advanced noise models (ionospheric, tropospheric)
 - [ ] Real-time constellation optimization
 - [ ] WebSocket streaming for live updates
-- [ ] 3D visualization with satellite positions
 - [ ] Performance benchmarking suite
+- [ ] Automated testing suite
 
 ## Contributing
 
