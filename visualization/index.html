@@ -31,11 +31,25 @@
     <div id="info">RF Battlespace Awareness – Real-time TDOA<br><span id="status">Initializing...</span></div>
 
     <script>
-        // No token needed — we're using pure ellipsoid + built-in stars
+        // Better Earth visualization with atmosphere
         const viewer = new Cesium.Viewer('cesiumContainer', {
+            baseLayer: Cesium.ImageryLayer.fromProviderAsync(
+                Cesium.TileMapServiceImageryProvider.fromUrl(
+                    Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII")
+                )
+            ),
             terrainProvider: new Cesium.EllipsoidTerrainProvider(),
-            skyBox: false,                    // disable broken external skybox
-            skyAtmosphere: false,
+            skyBox: new Cesium.SkyBox({
+                sources: {
+                    positiveX: 'https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_px.jpg',
+                    negativeX: 'https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_mx.jpg',
+                    positiveY: 'https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_py.jpg',
+                    negativeY: 'https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_my.jpg',
+                    positiveZ: 'https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_pz.jpg',
+                    negativeZ: 'https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Assets/Textures/SkyBox/tycho2t3_80_mz.jpg'
+                }
+            }),
+            skyAtmosphere: new Cesium.SkyAtmosphere(),
             timeline: false,
             animation: false,
             baseLayerPicker: false,
@@ -48,12 +62,13 @@
             fullscreenButton: false
         });
 
-        // Dark space background + subtle stars
-        viewer.scene.backgroundColor = Cesium.Color.BLACK;
+        // Enable lighting and atmosphere
         viewer.scene.globe.enableLighting = true;
-        viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0b1e3d');
+        viewer.scene.globe.showGroundAtmosphere = true;
 
         document.getElementById('status').innerHTML = 'Ready – loading fix...';
+
+        let isFirstLoad = true;
 
         async function loadFix() {
             try {
@@ -63,11 +78,51 @@
 
                 viewer.entities.removeAll();
 
-                // TRUTH (always red)
+                // TRUTH (always red) - Make it highly visible
+                const truthPos = Cesium.Cartesian3.fromDegrees(data.emitter.lon, data.emitter.lat, data.emitter.alt);
                 viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(51.3890, 35.6892, 100),
-                    billboard: { image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTE2IDBMMCAxNmwxNiAxNiAxNi0xNnoiIGZpbGw9InJlZCIvPjwvc3ZnPg==', scale: 0.8 },
-                    label: { text: 'TRUTH', fillColor: Cesium.Color.RED, pixelOffset: new Cesium.Cartesian2(0, -30) }
+                    position: truthPos,
+                    point: {
+                        pixelSize: 20,
+                        color: Cesium.Color.RED,
+                        outlineColor: Cesium.Color.WHITE,
+                        outlineWidth: 3
+                    },
+                    label: {
+                        text: 'EMITTER (TRUTH)',
+                        fillColor: Cesium.Color.RED,
+                        outlineColor: Cesium.Color.BLACK,
+                        outlineWidth: 2,
+                        pixelOffset: new Cesium.Cartesian2(0, -35),
+                        font: '14px monospace bold',
+                        style: Cesium.LabelStyle.FILL_AND_OUTLINE
+                    }
+                });
+
+                // SATELLITES (cyan with lines to emitter)
+                data.satellites.forEach((sat, idx) => {
+                    const satPos = Cesium.Cartesian3.fromDegrees(sat.lon, sat.lat, sat.alt);
+
+                    // Satellite marker
+                    viewer.entities.add({
+                        position: satPos,
+                        point: { pixelSize: 12, color: Cesium.Color.CYAN, outlineColor: Cesium.Color.WHITE, outlineWidth: 2 },
+                        label: {
+                            text: sat.name,
+                            fillColor: Cesium.Color.CYAN,
+                            pixelOffset: new Cesium.Cartesian2(0, -20),
+                            font: '12px monospace'
+                        }
+                    });
+
+                    // Line from satellite to emitter (to visualize geometry)
+                    viewer.entities.add({
+                        polyline: {
+                            positions: [satPos, truthPos],
+                            width: 1,
+                            material: Cesium.Color.CYAN.withAlpha(0.3)
+                        }
+                    });
                 });
 
                 // Color by CEP
@@ -91,11 +146,29 @@
                     }
                 });
 
-                const error_m = Math.round(Math.sqrt((data.lat - 35.6892) ** 2 + (data.lon - 51.3890) ** 2) * 111000);
+                const error_m = Math.round(Math.sqrt((data.lat - data.emitter.lat) ** 2 + (data.lon - data.emitter.lon) ** 2) * 111000);
+                const gdop = (data.cep95 / 50).toFixed(1);
                 document.getElementById('status').innerHTML =
-                    `Fix: ${data.lat.toFixed(4)}°N ${data.lon.toFixed(4)}°E | CEP95: ${data.cep95.toFixed(0)}m | Error: ${error_m}m | GDOP: ${(data.cep95 / 50).toFixed(1)}`;
+                    `Fix: ${data.lat.toFixed(4)}°N ${data.lon.toFixed(4)}°E | CEP95: ${data.cep95.toFixed(0)}m | Error: ${error_m}m | GDOP: ${gdop} | Sats: ${data.satellites.length}`;
 
-                viewer.zoomTo(viewer.entities);
+                // Only fly camera on first load
+                if (isFirstLoad) {
+                    // Calculate max satellite altitude for proper framing
+                    const maxSatAlt = Math.max(...data.satellites.map(s => s.alt));
+                    // View from ~2x satellite altitude to see both Earth and satellites clearly
+                    const viewAltitude = maxSatAlt * 2.2; // For 550km sats → 1210km view
+
+                    viewer.camera.flyTo({
+                        destination: Cesium.Cartesian3.fromDegrees(data.emitter.lon, data.emitter.lat, viewAltitude),
+                        orientation: {
+                            heading: Cesium.Math.toRadians(0),
+                            pitch: Cesium.Math.toRadians(-45), // Look down at 45° for better Earth view
+                            roll: 0.0
+                        },
+                        duration: 2.5
+                    });
+                    isFirstLoad = false;
+                }
             } catch (e) {
                 console.error(e);
             }

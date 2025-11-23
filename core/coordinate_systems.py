@@ -8,13 +8,16 @@ e2 = f * (2 - f)           # eccentricity squared
 
 def lla_to_ecef(lat, lon, alt=0.0):
     """Lat (deg), Lon (deg), Alt (m) → ECEF (m)"""
+    print(f"🔵 LLA→ECEF INPUT: lat={lat:.6f}°, lon={lon:.6f}°, alt={alt:.1f}m")
     lat = np.radians(lat)
     lon = np.radians(lon)
     N = a / np.sqrt(1 - e2 * np.sin(lat)**2)
     x = (N + alt) * np.cos(lat) * np.cos(lon)
     y = (N + alt) * np.cos(lat) * np.sin(lon)
     z = (N * (1 - e2) + alt) * np.sin(lat)
-    return np.array([x, y, z])
+    result = np.array([x, y, z])
+    print(f"🔵 LLA→ECEF OUTPUT: ECEF=[{x:.1f}, {y:.1f}, {z:.1f}]")
+    return result
 
 def ecef_to_lla(pos):
     """
@@ -22,6 +25,7 @@ def ecef_to_lla(pos):
     Bowring's method — fast and accurate for Earth surface
     """
     x, y, z = pos
+    print(f"🟢 ECEF→LLA INPUT: ECEF=[{x:.1f}, {y:.1f}, {z:.1f}]")
     b = a * (1 - f)                 # semi-minor axis
     e2p = (a**2 - b**2) / b**2      # second eccentricity squared
 
@@ -45,4 +49,5 @@ def ecef_to_lla(pos):
 
     lat = np.degrees(lat)
     lon = np.degrees(lon)
+    print(f"🟢 ECEF→LLA OUTPUT: lat={lat:.6f}°, lon={lon:.6f}°, alt={alt:.1f}m")
     return lat, lon, alt
